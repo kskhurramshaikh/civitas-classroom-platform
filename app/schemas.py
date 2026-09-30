@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, Any
 from pydantic import BaseModel, EmailStr
 
 from app.models import Role
@@ -104,6 +104,42 @@ class HomeworkCardOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ---- Generated activities (Phase 2 gamified reinforcement) ----
+
+class GeneratedActivityOut(BaseModel):
+    id: str
+    homework_card_id: str
+    engine_type: str
+    title: str
+    instructions_for_parent: Optional[str] = None
+    content: Any  # decoded JSON payload, shape depends on engine_type
+    created_at: datetime
+
+
+# ---- Roster (Teacher Voice Screen) ----
+
+class RosterStudentOut(BaseModel):
+    id: str
+    full_name: str
+    latest_progression: Optional[ProgressionCardOut] = None
+    latest_homework: Optional[HomeworkCardOut] = None
+    latest_activity: Optional[GeneratedActivityOut] = None
+
+
+# ---- Teacher persona (digital twin config) ----
+
+class TeacherPersonaOut(BaseModel):
+    display_name: str
+    persona_voice_notes: Optional[str] = None
+    voice_gender: Optional[str] = None
+
+
+class TeacherPersonaUpdate(BaseModel):
+    display_name: Optional[str] = None
+    persona_voice_notes: Optional[str] = None
+    voice_gender: Optional[str] = None
 
 
 # ---- Digital twin ----

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Civitas — Teacher Voice Screen</title>
+<style>
+  :root{
+    --bg:#12131a; --panel:#1b1d29; --panel2:#232537; --line:#2e3146;
+    --ink:#f3f4f8; --ink-dim:#9a9db3; --accent:#7c8cff; --accent2:#5ee6c4;
+    --warn:#ffb454; --d1:#7c8cff; --d2:#5ee6c4; --d3:#ff8fb1; --d4:#ffcf6b;
+    --d5:#c79bff; --d6:#6bd0ff; --radius:16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); min-height:100vh;}
+  .screen{max-width:1200px; margin:0 auto; padding:24px;}
+
+  /* --- Login --- */
+  #login-screen{max-width:380px; margin:12vh auto; padding:32px; background:var(--panel);
+    border-radius:var(--radius); border:1px solid var(--line);}
+  #login-screen h1{font-size:20px; margin:0 0 4px;}
+  #login-screen p{color:var(--ink-dim); font-size:14px; margin:0 0 20px;}
+  input, textarea{width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--ink); font-size:15px; margin-bottom:12px; font-family:inherit;}
+  button{cursor:pointer; border:none; border-radius:10px; font-weight:600; font-family:inherit;}
+  .btn-primary{background:var(--accent); color:#0d0e14; padding:12px 18px; font-size:15px; width:100%;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  #login-error{color:var(--warn); font-size:13px; min-height:18px; margin-top:-4px; margin-bottom:8px;}
+
+  /* --- App shell --- */
+  #app{display:none;}
+  header{display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;}
+  header h1{font-size:18px; margin:0;}
+  header .sub{color:var(--ink-dim); font-size:13px;}
+  #logout{background:transparent; color:var(--ink-dim); font-size:13px; padding:6px 10px;}
+  #logout:hover{color:var(--ink);}
+
+  /* --- Voice hub --- */
+  #hub{display:flex; flex-direction:column; align-items:center; margin:20px 0 32px;}
+  #mic-btn{width:96px; height:96px; border-radius:50%; background:radial-gradient(circle at 30% 30%, var(--accent), #4a54c9);
+    color:#fff; font-size:34px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 0 rgba(124,140,255,.5); transition:transform .15s;}
+  #mic-btn:hover{transform:scale(1.04);}
+  #mic-btn.listening{animation:pulse 1.4s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(124,140,255,.55);}
+    70%{box-shadow:0 0 0 22px rgba(124,140,255,0);}
+    100%{box-shadow:0 0 0 0 rgba(124,140,255,0);}
+  }
+  #mic-hint{color:var(--ink-dim); font-size:13px; margin-top:10px; text-align:center; max-width:340px;}
+  #transcript{color:var(--accent2); font-size:14px; margin-top:6px; min-height:18px;}
+
+  /* --- Roster --- */
+  #roster{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:14px; margin-bottom:28px;}
+  .tile{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px;
+    cursor:pointer; text-align:center; transition:border-color .15s, transform .15s;}
+  .tile:hover{border-color:var(--accent); transform:translateY(-2px);}
+  .tile.active{border-color:var(--accent2); box-shadow:0 0 0 2px rgba(94,230,196,.25);}
+  .tile .avatar{width:52px; height:52px; border-radius:50%; margin:0 auto 10px; display:flex;
+    align-items:center; justify-content:center; font-weight:700; font-size:18px; color:#0d0e14;}
+  .tile .name{font-size:14px; font-weight:600;}
+  .tile .flag{font-size:11px; color:var(--warn); margin-top:4px;}
+
+  /* --- Detail panel --- */
+  #detail{display:none; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:24px;}
+  #detail h2{margin:0 0 4px; font-size:20px;}
+  #detail .domain-tag{display:inline-block; font-size:11px; padding:3px 9px; border-radius:99px; margin-bottom:14px; font-weight:600;}
+  .block{margin-bottom:18px;}
+  .block h3{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-dim); margin:0 0 6px;}
+  .block p{margin:0; line-height:1.5; font-size:15px;}
+  .needs{color:var(--warn); font-size:13px; margin-top:4px;}
+  .activity-badge{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--accent2);
+    background:rgba(94,230,196,.08); padding:5px 10px; border-radius:99px; margin-top:6px;}
+
+  /* --- Persona settings --- */
+  #persona-toggle{background:var(--panel2); color:var(--ink-dim); font-size:12px; padding:6px 12px;}
+  #persona-panel{display:none; margin-top:14px; background:var(--panel2); border-radius:12px; padding:16px;}
+  #persona-panel label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:6px;}
+  #persona-panel textarea{min-height:80px; resize:vertical;}
+  #persona-save{width:auto; padding:9px 16px; font-size:13px;}
+  #persona-status{font-size:12px; color:var(--accent2); margin-left:10px;}
+
+  .empty{color:var(--ink-dim); font-size:14px; text-align:center; padding:40px 0;}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h1>Civitas Classroom</h1>
+  <p>Teacher Voice Screen — sign in</p>
+  <input id="login-email" type="email" placeholder="Email" autocomplete="username" />
+  <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" />
+  <div id="login-error"></div>
+  <button class="btn-primary" id="login-btn">Sign in</button>
+</div>
+
+<div id="app">
+  <div class="screen">
+    <header>
+      <div>
+        <h1 id="teacher-name">—</h1>
+        <div class="sub" id="class-name">—</div>
+      </div>
+      <button id="logout">Sign out</button>
+    </header>
+
+    <div id="hub">
+      <div id="mic-btn" title="Call on a student by voice">🎙️</div>
+      <div id="mic-hint">Tap and say “call on &lt;name&gt;” — or just tap a student below.</div>
+      <div id="transcript"></div>
+    </div>
+
+    <div id="roster"></div>
+
+    <div id="detail"></div>
+
+    <div style="margin-top:24px; text-align:center;">
+      <button id="persona-toggle">✏️ My Assistant's Persona</button>
+      <div id="persona-panel">
+        <label>Voice / tone notes (grounds the parent-facing digital twin)</label>
+        <textarea id="persona-notes"></textarea>
+        <button class="btn-primary" id="persona-save" style="display:inline-block;">Save</button>
+        <span id="persona-status"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DOMAIN_COLORS = {'--d1':'var(--d1)','--d2':'var(--d2)','--d3':'var(--d3)','--d4':'var(--d4)','--d5':'var(--d5)','--d6':'var(--d6)'};
+let token = localStorage.getItem('civitas_token') || '';
+let roster = [];
+let domainsById = {};
+let currentClassId = null;
+let activeStudentId = null;
+
+function api(path, opts={}) {
+  opts.headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  return fetch(path, opts).then(async r => {
+    if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); }
+    return r.json();
+  });
+}
+
+document.getElementById('login-btn').onclick = doLogin;
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  try {
+    const res = await api('/auth/login', {method:'POST', body: JSON.stringify({email, password})});
+    if (res.role !== 'teacher' && res.role !== 'admin') {
+      errEl.textContent = 'This screen is for teachers only.';
+      return;
+    }
+    token = res.access_token;
+    localStorage.setItem('civitas_token', token);
+    document.getElementById('teacher-name').textContent = res.full_name;
+    boot();
+  } catch (e) {
+    errEl.textContent = 'Could not sign in — check email and password.';
+  }
+}
+
+document.getElementById('logout').onclick = () => {
+  localStorage.removeItem('civitas_token');
+  location.reload();
+};
+
+async function boot() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  const [domains, classes] = await Promise.all([api('/domains'), api('/classes/mine')]);
+  domains.forEach(d => domainsById[d.id] = d);
+
+  if (!classes.length) {
+    document.getElementById('roster').innerHTML = '<div class="empty">No class assigned yet.</div>';
+    return;
+  }
+  currentClassId = classes[0].id;
+  document.getElementById('class-name').textContent = classes[0].name;
+  await loadRoster();
+  await loadPersona();
+}
+
+async function loadRoster() {
+  roster = await api(`/classes/${currentClassId}/roster`);
+  const el = document.getElementById('roster');
+  if (!roster.length) { el.innerHTML = '<div class="empty">No students yet.</div>'; return; }
+  el.innerHTML = roster.map(s => {
+    const initials = s.full_name.split(' ').map(p=>p[0]).slice(0,2).join('');
+    const needsFlag = s.latest_progression && s.latest_progression.needs_improvement ? '<div class="flag">⚑ needs work</div>' : '';
+    return `<div class="tile" data-id="${s.id}" onclick="callOn('${s.id}')">
+      <div class="avatar" style="background:var(--accent2);">${initials}</div>
+      <div class="name">${s.full_name}</div>
+      ${needsFlag}
+    </div>`;
+  }).join('');
+}
+
+function domainTag(domainId) {
+  const d = domainsById[domainId];
+  if (!d) return '';
+  const color = DOMAIN_COLORS[d.color_hint] || 'var(--accent)';
+  return `<span class="domain-tag" style="background:${color}22; color:${color};">${d.name}</span>`;
+}
+
+function callOn(studentId, spoken) {
+  activeStudentId = studentId;
+  document.querySelectorAll('.tile').forEach(t => t.classList.toggle('active', t.dataset.id === studentId));
+  const s = roster.find(r => r.id === studentId);
+  if (!s) return;
+
+  let html = `<h2>${s.full_name}</h2>`;
+  if (s.latest_progression) {
+    html += domainTag(s.latest_progression.domain_id);
+    html += `<div class="block"><h3>This week in class</h3><p>${s.latest_progression.observation}</p>`;
+    if (s.latest_progression.needs_improvement) html += `<div class="needs">Needs work: ${s.latest_progression.needs_improvement}</div>`;
+    html += `</div>`;
+  } else {
+    html += `<div class="block"><p style="color:var(--ink-dim);">No progression notes recorded yet.</p></div>`;
+  }
+  if (s.latest_homework) {
+    html += `<div class="block"><h3>Homework — ${s.latest_homework.title}</h3><p>${s.latest_homework.instructions}</p>`;
+    if (s.latest_activity) {
+      const label = s.latest_activity.engine_type === 'drill_sequence' ? '🎯 Drill activity generated'
+        : s.latest_activity.engine_type === 'scenario_choice' ? '💬 Scenario activity generated'
+        : '📝 Activity note generated';
+      html += `<div class="activity-badge">${label} — visible to parent</div>`;
+    }
+    html += `</div>`;
+  }
+  document.getElementById('detail').innerHTML = html;
+  document.getElementById('detail').style.display = 'block';
+
+  speak(spoken || `Calling on ${s.full_name.split(' ')[0]}.` +
+    (s.latest_progression ? ` This week: ${s.latest_progression.observation}` : ''));
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 1.0;
+  window.speechSynthesis.speak(u);
+}
+
+/* --- Voice command --- */
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizing = false;
+const micBtn = document.getElementById('mic-btn');
+const transcriptEl = document.getElementById('transcript');
+
+if (!SpeechRec) {
+  document.getElementById('mic-hint').textContent = 'Voice command needs Chrome. Tap a student below instead.';
+  micBtn.style.opacity = '0.4';
+  micBtn.style.cursor = 'default';
+} else {
+  const rec = new SpeechRec();
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.lang = 'en-US';
+
+  micBtn.onclick = () => {
+    if (recognizing) { rec.stop(); return; }
+    transcriptEl.textContent = '';
+    rec.start();
+  };
+  rec.onstart = () => { recognizing = true; micBtn.classList.add('listening'); };
+  rec.onend = () => { recognizing = false; micBtn.classList.remove('listening'); };
+  rec.onerror = () => { recognizing = false; micBtn.classList.remove('listening'); };
+  rec.onresult = (e) => {
+    const said = e.results[0][0].transcript;
+    transcriptEl.textContent = `“${said}”`;
+    matchAndCall(said);
+  };
+}
+
+function matchAndCall(said) {
+  const lower = said.toLowerCase();
+  const match = roster.find(s => {
+    const first = s.full_name.split(' ')[0].toLowerCase();
+    return lower.includes(first);
+  });
+  if (match) {
+    callOn(match.id);
+  } else {
+    speak("I didn't catch a name I recognize. Try again, or tap a student.");
+  }
+}
+
+/* --- Persona settings --- */
+document.getElementById('persona-toggle').onclick = () => {
+  const p = document.getElementById('persona-panel');
+  p.style.display = p.style.display === 'block' ? 'none' : 'block';
+};
+async function loadPersona() {
+  try {
+    const persona = await api('/teachers/me/persona');
+    document.getElementById('persona-notes').value = persona.persona_voice_notes || '';
+  } catch (e) {}
+}
+document.getElementById('persona-save').onclick = async () => {
+  const notes = document.getElementById('persona-notes').value;
+  const status = document.getElementById('persona-status');
+  try {
+    await api('/teachers/me/persona', {method:'PUT', body: JSON.stringify({persona_voice_notes: notes})});
+    status.textContent = 'Saved ✓';
+    setTimeout(() => status.textContent = '', 2000);
+  } catch (e) {
+    status.textContent = 'Could not save';
+  }
+};
+
+/* --- Auto-resume session --- */
+if (token) {
+  api('/classes/mine').then(() => {
+    document.getElementById('teacher-name').textContent = 'Welcome back';
+    boot();
+  }).catch(() => { localStorage.removeItem('civitas_token'); token=''; });
+}
+</script>
+</body>
+</html>

@@ -6,12 +6,13 @@ from app.models import User, Role, HomeworkCard, Teacher
 from app.schemas import HomeworkCardCreate, HomeworkCardOut
 from app.security import require_role, get_current_user
 from app.permissions import assert_can_access_student
+from app.services.content_generation import generate_activity_for_homework
 
 router = APIRouter(prefix="/homework-cards", tags=["homework"])
 
 
 @router.post("", response_model=HomeworkCardOut, status_code=status.HTTP_201_CREATED)
-def create_homework_card(
+async def create_homework_card(
     payload: HomeworkCardCreate,
     user: User = Depends(require_role(Role.teacher, Role.admin)),
     db: Session = Depends(get_db),
@@ -22,6 +23,19 @@ def create_homework_card(
     db.add(card)
     db.commit()
     db.refresh(card)
+
+    # Every parent reinforcement gets auto-converted into a gamified
+    # activity — this is the point where that happens. If generation
+    # fails for any reason, the homework card itself still exists;
+    # we don't fail card creation over it.
+    try:
+        activity = await generate_activity_for_homework(db, card)
+        card.generated_activity_id = activity.id
+        db.commit()
+        db.refresh(card)
+    except Exception:
+        pass
+
     return card
 
 

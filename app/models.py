@@ -173,3 +173,41 @@ class HomeworkCard(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     student = relationship("Student", back_populates="homework_cards")
+
+
+class GeneratedActivity(Base):
+    """
+    Phase 2: the AI-generated, bespoke gamified reinforcement activity
+    for one HomeworkCard. Generated once per homework card (see
+    app/services/content_generation.py) and rendered client-side by
+    one of a small set of reusable "engines" identified by
+    engine_type — NOT a fixed template: the content itself
+    (items/scenarios/etc.) is written fresh per card by the model,
+    only the rendering shape is reused.
+
+    engine_type is currently one of:
+      - "drill_sequence"   e.g. a counting/sequence drill with a quiz
+                            (modeled on the Teen Number Trail prototype)
+      - "scenario_choice"  e.g. social-skill scenario cards with
+                            non-scored options (modeled on Friendship Path)
+      - "text_fallback"    the model didn't return parseable structured
+                            content; instructions_for_parent still holds
+                            something useful to read.
+
+    content_json holds the engine-specific payload as a JSON string
+    (kept as text rather than a JSON column so this works unchanged on
+    SQLite too, which local testing uses).
+
+    homework_card_id is a plain reference, not a formal ForeignKey —
+    same as HomeworkCard.generated_activity_id — since this table is
+    new and Phase 1 has no migrations yet (see app/main.py).
+    """
+    __tablename__ = "generated_activities"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    homework_card_id = Column(UUID(as_uuid=False), nullable=False)
+    engine_type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    instructions_for_parent = Column(Text, nullable=True)
+    content_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

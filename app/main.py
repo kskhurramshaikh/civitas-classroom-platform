@@ -1,8 +1,11 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
-from app.routers import auth, classes, progression, homework, twin, admin
+from app.routers import auth, classes, progression, homework, twin, admin, teachers, activities, domains
 
 # Phase 1: create tables directly from the models on startup. This is
 # intentionally not Alembic yet — fine for getting a first deploy up
@@ -26,8 +29,20 @@ app.include_router(progression.router)
 app.include_router(homework.router)
 app.include_router(twin.router)
 app.include_router(admin.router)
+app.include_router(teachers.router)
+app.include_router(activities.router)
+app.include_router(domains.router)
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# Phase 2 frontends — Teacher Voice Screen and the parent app — served
+# as static files straight from this API so there's no separate
+# static site/host to wire up yet. /web/teacher.html and
+# /web/parent.html; both call this same API by relative path.
+_web_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "web")
+if os.path.isdir(_web_dir):
+    app.mount("/web", StaticFiles(directory=_web_dir, html=True), name="web")

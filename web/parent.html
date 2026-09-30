@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Civitas — Learning Garden</title>
+<style>
+  :root{
+    --bg:#faf7f2; --panel:#ffffff; --ink:#2b2a2e; --ink-dim:#7a7680; --line:#ece7dd;
+    --accent:#5b6bd6; --good:#3fae7e;
+    --d1:#5b8cff; --d2:#33b7a6; --d3:#ff7aa2; --d4:#ffb84d; --d5:#a06bff; --d6:#4bc3e8;
+    --radius:18px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink);}
+  .screen{max-width:900px; margin:0 auto; padding:24px 20px 100px;}
+
+  #login-screen{max-width:380px; margin:12vh auto; padding:32px; background:var(--panel);
+    border-radius:var(--radius); box-shadow:0 6px 24px rgba(0,0,0,.06);}
+  #login-screen h1{font-size:20px; margin:0 0 4px;}
+  #login-screen p{color:var(--ink-dim); font-size:14px; margin:0 0 20px;}
+  input, textarea{width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--line);
+    background:#fff; color:var(--ink); font-size:15px; margin-bottom:12px; font-family:inherit;}
+  button{cursor:pointer; border:none; border-radius:10px; font-weight:600; font-family:inherit;}
+  .btn-primary{background:var(--accent); color:#fff; padding:12px 18px; font-size:15px; width:100%;}
+  .btn-primary:hover{filter:brightness(1.06);}
+  #login-error{color:#d1495b; font-size:13px; min-height:18px; margin-top:-4px; margin-bottom:8px;}
+
+  #app{display:none;}
+  header{display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;}
+  header h1{font-size:20px; margin:0;}
+  #child-select{padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:#fff; font-size:14px;}
+  #logout{background:transparent; color:var(--ink-dim); font-size:13px; padding:6px 10px;}
+
+  h2.section{font-size:15px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); margin:28px 0 12px;}
+
+  #domain-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:14px;}
+  .domain-card{background:var(--panel); border-radius:var(--radius); padding:16px; box-shadow:0 2px 10px rgba(0,0,0,.04);
+    border-top:5px solid var(--accent);}
+  .domain-card h3{margin:0 0 6px; font-size:14px;}
+  .domain-card p{margin:0; font-size:13px; color:var(--ink-dim); line-height:1.4;}
+  .domain-card .empty-note{color:#bbb; font-style:italic;}
+
+  .hw-card{background:var(--panel); border-radius:var(--radius); padding:18px; margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,.04);}
+  .hw-card h3{margin:0 0 4px; font-size:16px;}
+  .hw-card .domain-pill{display:inline-block; font-size:11px; padding:3px 9px; border-radius:99px; margin-bottom:8px; font-weight:600;}
+  .hw-card p.instr{color:var(--ink-dim); font-size:14px; margin:0 0 12px;}
+  .play-btn{background:var(--good); color:#fff; padding:10px 16px; font-size:14px;}
+
+  /* --- Activity modal --- */
+  #activity-overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50;
+    align-items:center; justify-content:center; padding:20px;}
+  #activity-modal{background:#fff; border-radius:var(--radius); max-width:520px; width:100%; max-height:86vh;
+    overflow-y:auto; padding:26px;}
+  #activity-modal h2{margin:0 0 6px;}
+  #activity-modal .lead{color:var(--ink-dim); font-size:14px; margin-bottom:18px;}
+  #activity-close{position:absolute; top:14px; right:18px; background:none; font-size:20px; color:var(--ink-dim);}
+  .item-box{border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:12px;}
+  .item-box .prompt{font-size:16px; font-weight:600; margin-bottom:10px;}
+  .item-box input{margin-bottom:8px;}
+  .item-box .check-btn{background:var(--accent); color:#fff; padding:8px 14px; font-size:13px; width:auto;}
+  .item-box .result{font-size:13px; margin-top:8px; min-height:16px;}
+  .item-box .result.correct{color:var(--good);}
+  .item-box .result.wrong{color:#d1495b;}
+  .scenario-box{border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px;}
+  .scenario-box .scenario{font-weight:600; margin-bottom:10px;}
+  .opt-btn{display:block; width:100%; text-align:left; background:#f4f2ec; padding:10px 14px; margin-bottom:8px; font-size:14px;}
+  .opt-btn.chosen{background:var(--accent); color:#fff;}
+  .reveal{display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); font-size:13px; color:var(--ink-dim);}
+
+  /* --- Assistant chat --- */
+  #chat-fab{position:fixed; bottom:22px; right:22px; width:58px; height:58px; border-radius:50%;
+    background:var(--accent); color:#fff; font-size:24px; box-shadow:0 6px 18px rgba(0,0,0,.18); z-index:40;}
+  #chat-panel{display:none; position:fixed; bottom:92px; right:22px; width:320px; max-height:460px;
+    background:#fff; border-radius:var(--radius); box-shadow:0 10px 30px rgba(0,0,0,.18); z-index:40;
+    display:none; flex-direction:column; overflow:hidden;}
+  #chat-panel.open{display:flex;}
+  #chat-header{background:var(--accent); color:#fff; padding:14px 16px; font-size:14px; font-weight:600;}
+  #chat-messages{flex:1; overflow-y:auto; padding:14px; font-size:14px;}
+  .msg{margin-bottom:10px; line-height:1.4;}
+  .msg.user{text-align:right; color:var(--accent);}
+  .msg.assistant{color:var(--ink);}
+  .msg.escalated{font-size:12px; color:#b8860b; margin-top:2px;}
+  #chat-input-row{display:flex; border-top:1px solid var(--line); padding:8px;}
+  #chat-input-row input{margin:0; flex:1;}
+  #chat-send{width:auto; padding:0 14px; margin-left:6px; background:var(--accent); color:#fff;}
+
+  .empty{color:var(--ink-dim); text-align:center; padding:30px 0;}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h1>Civitas Learning Garden</h1>
+  <p>Sign in to see how your child is growing</p>
+  <input id="login-email" type="email" placeholder="Email" autocomplete="username" />
+  <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" />
+  <div id="login-error"></div>
+  <button class="btn-primary" id="login-btn">Sign in</button>
+</div>
+
+<div id="app">
+  <div class="screen">
+    <header>
+      <h1>🌱 Learning Garden</h1>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <select id="child-select"></select>
+        <button id="logout">Sign out</button>
+      </div>
+    </header>
+
+    <h2 class="section">This week, by area</h2>
+    <div id="domain-grid"></div>
+
+    <h2 class="section">Practice together</h2>
+    <div id="homework-list"></div>
+  </div>
+</div>
+
+<div id="activity-overlay">
+  <div id="activity-modal" style="position:relative;">
+    <button id="activity-close">✕</button>
+    <div id="activity-body"></div>
+  </div>
+</div>
+
+<button id="chat-fab">💬</button>
+<div id="chat-panel">
+  <div id="chat-header" id="chat-title">Teacher's Assistant</div>
+  <div id="chat-messages"></div>
+  <div id="chat-input-row">
+    <input id="chat-input" placeholder="Ask about your child…" />
+    <button id="chat-send">Send</button>
+  </div>
+</div>
+
+<script>
+const DOMAIN_COLORS = {'--d1':'var(--d1)','--d2':'var(--d2)','--d3':'var(--d3)','--d4':'var(--d4)','--d5':'var(--d5)','--d6':'var(--d6)'};
+let token = localStorage.getItem('civitas_token') || '';
+let children = [];
+let currentChild = null;
+let domainsById = {};
+
+function api(path, opts={}) {
+  opts.headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  return fetch(path, opts).then(async r => {
+    if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); }
+    return r.json();
+  });
+}
+
+document.getElementById('login-btn').onclick = doLogin;
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  try {
+    const res = await api('/auth/login', {method:'POST', body: JSON.stringify({email, password})});
+    if (res.role !== 'parent') {
+      errEl.textContent = 'This app is for parent accounts.';
+      return;
+    }
+    token = res.access_token;
+    localStorage.setItem('civitas_token', token);
+    boot();
+  } catch (e) {
+    errEl.textContent = 'Could not sign in — check email and password.';
+  }
+}
+
+document.getElementById('logout').onclick = () => {
+  localStorage.removeItem('civitas_token');
+  location.reload();
+};
+
+async function boot() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  const [domains, kids] = await Promise.all([api('/domains'), api('/students/mine')]);
+  domains.forEach(d => domainsById[d.id] = d);
+  children = kids;
+
+  if (!children.length) {
+    document.getElementById('domain-grid').innerHTML = '<div class="empty">No child linked to this account yet.</div>';
+    return;
+  }
+  const sel = document.getElementById('child-select');
+  sel.innerHTML = children.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('');
+  sel.onchange = () => loadChild(sel.value);
+  await loadChild(children[0].id);
+}
+
+async function loadChild(studentId) {
+  currentChild = children.find(c => c.id === studentId);
+  const [progression, homework] = await Promise.all([
+    api(`/progression-cards/student/${studentId}`),
+    api(`/homework-cards/student/${studentId}`),
+  ]);
+  renderDomainGrid(progression);
+  renderHomework(homework);
+}
+
+function renderDomainGrid(progression) {
+  const byDomain = {};
+  progression.forEach(p => {
+    if (!byDomain[p.domain_id] || p.week_start > byDomain[p.domain_id].week_start) byDomain[p.domain_id] = p;
+  });
+  const el = document.getElementById('domain-grid');
+  const domains = Object.values(domainsById);
+  el.innerHTML = domains.map(d => {
+    const card = byDomain[d.id];
+    const color = DOMAIN_COLORS[d.color_hint] || 'var(--accent)';
+    const body = card
+      ? `<p>${card.observation}</p>`
+      : `<p class="empty-note">No notes yet this term</p>`;
+    return `<div class="domain-card" style="border-top-color:${color};"><h3>${d.name}</h3>${body}</div>`;
+  }).join('');
+}
+
+let homeworkById = {};
+function renderHomework(list) {
+  homeworkById = {};
+  list.forEach(h => homeworkById[h.id] = h);
+  const el = document.getElementById('homework-list');
+  if (!list.length) { el.innerHTML = '<div class="empty">No homework assigned yet.</div>'; return; }
+  el.innerHTML = list.map(h => {
+    const d = domainsById[h.domain_id];
+    const color = d ? (DOMAIN_COLORS[d.color_hint] || 'var(--accent)') : 'var(--accent)';
+    return `<div class="hw-card">
+      ${d ? `<span class="domain-pill" style="background:${color}22; color:${color};">${d.name}</span>` : ''}
+      <h3>${h.title}</h3>
+      <p class="instr">${h.instructions}</p>
+      ${h.generated_activity_id ? `<button class="play-btn" onclick="openActivity('${h.generated_activity_id}')">▶ Practice together</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function openActivity(activityId) {
+  const activity = await api(`/activities/${activityId}`);
+  const overlay = document.getElementById('activity-overlay');
+  const body = document.getElementById('activity-body');
+
+  let html = `<h2>${activity.title}</h2><div class="lead">${activity.instructions_for_parent || ''}</div>`;
+
+  if (activity.engine_type === 'drill_sequence' && activity.content.items) {
+    activity.content.items.forEach((item, i) => {
+      html += `<div class="item-box" data-idx="${i}">
+        <div class="prompt">${item.prompt}</div>
+        <input type="text" placeholder="Their answer…" />
+        <button class="check-btn" onclick="checkDrillItem(this, '${(item.answer+'').replace(/'/g, "\\'")}')">Check</button>
+        <div class="result"></div>
+      </div>`;
+    });
+  } else if (activity.engine_type === 'scenario_choice' && activity.content.scenarios) {
+    activity.content.scenarios.forEach((sc, i) => {
+      html += `<div class="scenario-box">
+        <div class="scenario">${sc.scenario}</div>
+        ${sc.options.map(opt => `<button class="opt-btn" onclick="chooseOption(this, ${i})">${opt}</button>`).join('')}
+        <div class="reveal" id="reveal-${i}">
+          <strong>Ask your child:</strong> ${sc.reflection || ''}<br/>
+          <strong>Tip:</strong> ${sc.parent_talk_prompt || ''}
+        </div>
+      </div>`;
+    });
+  } else {
+    html += `<p style="color:var(--ink-dim);">No structured activity yet — use the instructions above to practice together.</p>`;
+  }
+
+  body.innerHTML = html;
+  overlay.style.display = 'flex';
+}
+
+function checkDrillItem(btn, answer) {
+  const box = btn.closest('.item-box');
+  const input = box.querySelector('input');
+  const result = box.querySelector('.result');
+  const given = (input.value || '').trim().toLowerCase();
+  const correct = given === answer.trim().toLowerCase();
+  result.textContent = correct ? "✓ That's right!" : `Not quite — the answer is "${answer}". Try the next one together.`;
+  result.className = 'result ' + (correct ? 'correct' : 'wrong');
+}
+
+function chooseOption(btn, idx) {
+  const box = btn.closest('.scenario-box');
+  box.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('chosen'));
+  btn.classList.add('chosen');
+  document.getElementById(`reveal-${idx}`).style.display = 'block';
+}
+
+document.getElementById('activity-close').onclick = () => {
+  document.getElementById('activity-overlay').style.display = 'none';
+};
+document.getElementById('activity-overlay').onclick = (e) => {
+  if (e.target.id === 'activity-overlay') e.currentTarget.style.display = 'none';
+};
+
+/* --- Digital twin chat --- */
+const chatFab = document.getElementById('chat-fab');
+const chatPanel = document.getElementById('chat-panel');
+chatFab.onclick = () => chatPanel.classList.toggle('open');
+
+document.getElementById('chat-send').onclick = sendChat;
+document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key==='Enter') sendChat(); });
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !currentChild) return;
+  input.value = '';
+  appendMsg('user', text);
+  try {
+    const res = await api('/twin/chat', {method:'POST', body: JSON.stringify({student_id: currentChild.id, message: text})});
+    appendMsg('assistant', res.reply, res.escalated);
+  } catch (e) {
+    appendMsg('assistant', "Sorry, I couldn't reach the assistant just now.");
+  }
+}
+
+function appendMsg(role, text, escalated) {
+  const el = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = text;
+  el.appendChild(div);
+  if (escalated) {
+    const note = document.createElement('div');
+    note.className = 'msg escalated';
+    note.textContent = '🔔 Flagged to the teacher directly.';
+    el.appendChild(note);
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+/* --- Auto-resume session --- */
+if (token) {
+  api('/students/mine').then(() => boot()).catch(() => { localStorage.removeItem('civitas_token'); token=''; });
+}
+</script>
+</body>
+</html>
