@@ -267,16 +267,62 @@ if (!SpeechRec) {
   rec.interimResults = false;
   rec.lang = 'en-US';
 
+  // A real mic can get "stuck" — permission prompt dismissed without a
+  // choice, a flaky connection to the browser's speech service, or the
+  // tab losing focus mid-listen — and the Web Speech API doesn't always
+  // fire onend/onerror when that happens. Without a fallback the button
+  // would just sit there pulsing forever with no way out but a reload.
+  // A hard timeout plus a visible error message covers that.
+  let listenTimeout = null;
+  function clearListenTimeout() {
+    if (listenTimeout) { clearTimeout(listenTimeout); listenTimeout = null; }
+  }
+  function stopListeningUI() {
+    recognizing = false;
+    micBtn.classList.remove('listening');
+    clearListenTimeout();
+  }
+
   micBtn.onclick = () => {
     if (recognizing) { rec.stop(); return; }
     transcriptEl.textContent = '';
-    rec.start();
+    transcriptEl.style.color = '';
+    try {
+      rec.start();
+    } catch (e) {
+      // Most commonly: rec.start() called while a previous session is
+      // still tearing down (InvalidStateError). Reset and let the
+      // teacher just tap again rather than leaving the button dead.
+      stopListeningUI();
+      transcriptEl.textContent = 'Mic didn\'t start — tap to try again.';
+      transcriptEl.style.color = 'var(--warn)';
+      return;
+    }
+    listenTimeout = setTimeout(() => {
+      rec.stop();
+      stopListeningUI();
+      transcriptEl.textContent = 'Still stuck? Reload the page and check the mic icon in the address bar.';
+      transcriptEl.style.color = 'var(--warn)';
+    }, 8000);
   };
   rec.onstart = () => { recognizing = true; micBtn.classList.add('listening'); };
-  rec.onend = () => { recognizing = false; micBtn.classList.remove('listening'); };
-  rec.onerror = () => { recognizing = false; micBtn.classList.remove('listening'); };
+  rec.onend = () => { stopListeningUI(); };
+  rec.onerror = (e) => {
+    stopListeningUI();
+    const messages = {
+      'not-allowed': 'Microphone access is blocked for this page — click the mic icon in the address bar to allow it.',
+      'service-not-allowed': 'Microphone access is blocked for this page — click the mic icon in the address bar to allow it.',
+      'no-speech': "Didn't hear anything — tap the mic and try again.",
+      'audio-capture': 'No microphone found on this device.',
+      'network': 'Voice recognition needs an internet connection — check yours and try again.',
+    };
+    transcriptEl.textContent = messages[e.error] || 'Voice command hit a snag — tap the mic to try again.';
+    transcriptEl.style.color = 'var(--warn)';
+  };
   rec.onresult = (e) => {
+    clearListenTimeout();
     const said = e.results[0][0].transcript;
+    transcriptEl.style.color = '';
     transcriptEl.textContent = `“${said}”`;
     matchAndCall(said);
   };
