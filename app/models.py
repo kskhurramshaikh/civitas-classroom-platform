@@ -66,7 +66,7 @@ class Teacher(Base):
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
     user_id = Column(UUID(as_uuid=False), ForeignKey("users.id"), unique=True, nullable=False)
-    display_name = Column(String, nullable=False)   # e.g. "Ms. Sana"
+    display_name = Column(String, nullable=False)   # e.g. "Ms. Sama"
     persona_voice_notes = Column(Text, nullable=True)  # tone/style notes used to ground the twin
     voice_gender = Column(String, nullable=True)       # for future TTS persona selection
 

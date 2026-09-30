@@ -1,5 +1,5 @@
 """
-Seeds one school, one teacher (Ms. Sana), one class, a handful of
+Seeds one school, one teacher (Ms. Sama), one class, a handful of
 students (including Zayan and Ibrahim from the pitch prototype), the
 six developmental domains used in the Learning Garden parent app, and
 one parent account per student so the API has something real to query
@@ -45,9 +45,9 @@ def run():
 
         teacher_user = User(
             school_id=school.id,
-            email="sana@civitas.edu.pk",
+            email="sama@civitas.edu.pk",
             hashed_password=hash_password("changeme123"),
-            full_name="Sana Ahmed",
+            full_name="Sama Ahmed",
             role=Role.teacher,
         )
         db.add(teacher_user)
@@ -55,7 +55,7 @@ def run():
 
         teacher = Teacher(
             user_id=teacher_user.id,
-            display_name="Ms. Sana",
+            display_name="Ms. Sama",
             persona_voice_notes=(
                 "Warm, plain-spoken, encouraging. Talks about small concrete moments, "
                 "not abstract scores. Always pairs a concern with something the child is "
@@ -93,7 +93,7 @@ def run():
             db.add(ParentStudentLink(parent_user_id=parent_user.id, student_id=student.id))
 
         db.commit()
-        print("Seeded: school, teacher (sana@civitas.edu.pk), class, 2 students + parents.")
+        print("Seeded: school, teacher (sama@civitas.edu.pk), class, 2 students + parents.")
         print("All demo passwords: changeme123")
 
     finally:

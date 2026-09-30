@@ -51,7 +51,7 @@ before this handles real production data in Phase 2).
 
 ## Seeding a first teacher + class
 
-See `scripts/seed_demo.py` — creates one school, one teacher (Ms. Sana),
+See `scripts/seed_demo.py` — creates one school, one teacher (Ms. Sama),
 one class, and a handful of demo students so the API has something to
 query immediately after first deploy.
 
