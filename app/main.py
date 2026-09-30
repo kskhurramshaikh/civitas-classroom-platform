@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
-from app.routers import auth, classes, progression, homework, twin, admin, teachers, activities, domains
+from app.routers import auth, classes, progression, homework, twin, admin, teachers, activities, domains, planner
 
 # Phase 1: create tables directly from the models on startup. This is
 # intentionally not Alembic yet — fine for getting a first deploy up
@@ -33,6 +33,7 @@ app.include_router(admin.router)
 app.include_router(teachers.router)
 app.include_router(activities.router)
 app.include_router(domains.router)
+app.include_router(planner.router)
 
 
 @app.get("/health")

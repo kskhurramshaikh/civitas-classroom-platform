@@ -152,3 +152,57 @@ class TwinChatRequest(BaseModel):
 class TwinChatResponse(BaseModel):
     reply: str
     escalated: bool
+
+
+# ---- Term planner ----
+
+class WeekPlanCreate(BaseModel):
+    domain_id: str
+    focus: str
+
+
+class WeekPlanOut(BaseModel):
+    id: str
+    domain_id: str
+    focus: str
+
+    class Config:
+        from_attributes = True
+
+
+class TermWeekOut(BaseModel):
+    id: str
+    week_number: int
+    week_start: date
+    plans: list[WeekPlanOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class TermCreate(BaseModel):
+    class_section_id: str
+    name: str
+    start_date: date
+    num_weeks: int
+
+
+class TermOut(BaseModel):
+    id: str
+    class_section_id: str
+    name: str
+    start_date: date
+    num_weeks: int
+    weeks: list[TermWeekOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class CurrentWeekOut(BaseModel):
+    term_id: str
+    term_name: str
+    week_id: str
+    week_number: int
+    week_start: date
+    all_weeks: list[TermWeekOut] = []

@@ -211,3 +211,57 @@ class GeneratedActivity(Base):
     instructions_for_parent = Column(Text, nullable=True)
     content_json = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Term(Base):
+    """
+    A teacher's term planner for one class: a start date plus a number
+    of weeks. Creating a Term auto-generates its TermWeek rows (one per
+    week, Monday-aligned) so the teacher can plan ahead week by week
+    rather than typing a raw date every time she adds a card. The actual
+    weekly records (ProgressionCard, HomeworkCard) stay keyed by
+    week_start exactly as before — a Term just gives the UI a ready-made
+    list of weeks to plan against and navigate.
+    """
+    __tablename__ = "terms"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    class_section_id = Column(UUID(as_uuid=False), ForeignKey("class_sections.id"), nullable=False)
+    name = Column(String, nullable=False)          # e.g. "Term 1"
+    start_date = Column(Date, nullable=False)       # Monday of week 1
+    num_weeks = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    weeks = relationship("TermWeek", back_populates="term", order_by="TermWeek.week_number")
+
+
+class TermWeek(Base):
+    __tablename__ = "term_weeks"
+    __table_args__ = (UniqueConstraint("term_id", "week_number", name="uq_term_week_number"),)
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    term_id = Column(UUID(as_uuid=False), ForeignKey("terms.id"), nullable=False)
+    week_number = Column(Integer, nullable=False)   # 1-based
+    week_start = Column(Date, nullable=False)        # Monday of that week
+
+    term = relationship("Term", back_populates="weeks")
+    plans = relationship("WeekPlan", back_populates="term_week")
+
+
+class WeekPlan(Base):
+    """
+    A teacher's pre-planned focus/topic for one developmental domain in
+    one week of a term — filled in ahead of time while building the
+    term planner. Distinct from ProgressionCard.observation, which is
+    the actual note recorded after the week happens.
+    """
+    __tablename__ = "week_plans"
+    __table_args__ = (UniqueConstraint("term_week_id", "domain_id", name="uq_week_plan_domain"),)
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    term_week_id = Column(UUID(as_uuid=False), ForeignKey("term_weeks.id"), nullable=False)
+    domain_id = Column(UUID(as_uuid=False), ForeignKey("developmental_domains.id"), nullable=False)
+    focus = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    term_week = relationship("TermWeek", back_populates="plans")
