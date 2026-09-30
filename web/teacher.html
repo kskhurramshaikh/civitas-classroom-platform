@@ -143,6 +143,61 @@
   #persona-status{font-size:12px; color:var(--accent2); margin-left:10px;}
 
   .empty{color:var(--ink-dim); font-size:14px; text-align:center; padding:40px 0;}
+
+  /* --- Weekly cards (card layout, per-domain grouped by week) --- */
+  #wc-section{margin-top:22px;}
+  #wc-section h3{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-dim); margin:0 0 10px;}
+  #wc-strip{display:flex; gap:14px; overflow-x:auto; padding-bottom:8px;}
+  .wcard{flex:0 0 260px; background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:14px;}
+  .wcard-head{font-size:13px; font-weight:700; margin-bottom:10px; color:var(--ink);}
+  .wc-domain{padding:8px 0 8px 10px; margin-bottom:8px;}
+  .wc-domain:last-child{margin-bottom:0;}
+  .wc-domain-name{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px;}
+  .wc-obs{font-size:13px; line-height:1.4; margin:0 0 4px;}
+  .wc-score{font-size:12px; font-weight:700;}
+  .wc-reinforcement{margin-top:6px; font-size:12.5px; background:rgba(255,255,255,.04); border-radius:8px; padding:8px;}
+  .wc-reinforcement strong{display:block; margin-bottom:2px;}
+  .wc-reinforcement p{margin:0; color:var(--ink-dim);}
+
+  /* --- Add weekly entry (progress note / reinforcement) form --- */
+  .btn-add{background:var(--panel2); color:var(--accent2); border:1px dashed var(--line); padding:8px 14px; font-size:13px; margin-top:14px;}
+  .btn-add:hover{border-color:var(--accent2);}
+  #addcard-panel{margin-top:14px; background:var(--panel2); border-radius:12px; padding:16px;}
+  #addcard-panel h4{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); margin:16px 0 8px;}
+  #addcard-panel h4:first-of-type{margin-top:4px;}
+  #addcard-panel label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:6px;}
+  #addcard-panel textarea{min-height:64px; resize:vertical;}
+  .addcard-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  #addcard-panel input[type=range]{padding:0; margin-bottom:14px;}
+  #addcard-panel .btn-primary{width:auto; padding:9px 16px; font-size:13px;}
+  #ac-status{font-size:12px; color:var(--accent2); margin-top:6px; min-height:16px;}
+
+  /* --- Term Planner --- */
+  #planner-panel{display:none; margin-top:14px; background:var(--panel2); border-radius:12px; padding:16px; text-align:left;}
+  #planner-panel h4{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); margin:0 0 10px;}
+  .planner-create-grid{display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; align-items:end;}
+  .planner-create-grid label{font-size:12px; color:var(--ink-dim); display:block; margin-bottom:6px;}
+  .planner-week{border-top:1px solid var(--line); padding:12px 0;}
+  .planner-week-head{font-size:13px; font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+  .planner-week-head .wk-cur{font-size:10px; background:var(--accent2); color:#0d0e14; padding:2px 8px; border-radius:99px; font-weight:800;}
+  .planner-domain-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .planner-domain-row .pd-name{flex:0 0 140px; font-size:12.5px; font-weight:600;}
+  .planner-domain-row input{margin:0; flex:1;}
+  .planner-domain-row button{flex:0 0 auto; padding:8px 12px; font-size:12px; background:var(--accent); color:#0d0e14;}
+  #planner-status{font-size:12px; color:var(--accent2); margin-left:10px;}
+
+  /* --- Voice screen: score ring + week navigation --- */
+  #vx .orb-wrap{position:relative; width:220px; height:220px;}
+  #vx .score-ring{position:absolute; inset:0; transform:rotate(-90deg);}
+  #vx .score-ring circle{fill:none; stroke-width:6;}
+  #vx .score-ring .rbg{stroke:rgba(255,255,255,.1);}
+  #vx .score-ring .rfg{stroke-linecap:round; transition:stroke-dashoffset .6s ease, stroke .3s ease;}
+  #vx-score{display:none; margin-top:6px; font-size:13px; font-weight:700; text-align:center;}
+  #vx-weeknav{display:none; align-items:center; gap:10px; margin-top:10px;}
+  #vx-weeknav button{background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); color:var(--ink);
+    width:30px; height:30px; border-radius:50%; font-size:15px;}
+  #vx-weeknav button:disabled{opacity:.3; cursor:default;}
+  #vx-weeknav .wk-label{font-size:12.5px; color:var(--ink-dim); min-width:120px; text-align:center;}
 </style>
 </head>
 <body>
@@ -166,10 +221,22 @@
     <div class="main">
       <nav class="rail" id="vx-rail" aria-label="Students"><div class="rh">Class roster</div></nav>
       <div class="stage">
-        <div class="orb"><i></i><i></i><i></i><div class="core" id="vx-core">🎙️</div></div>
+        <div class="orb-wrap">
+          <svg class="score-ring" viewBox="0 0 220 220">
+            <circle class="rbg" cx="110" cy="110" r="102"></circle>
+            <circle class="rfg" id="vx-ring-fg" cx="110" cy="110" r="102"></circle>
+          </svg>
+          <div class="orb"><i></i><i></i><i></i><div class="core" id="vx-core">🎙️</div></div>
+        </div>
         <div class="nm" id="vx-name">Listening…</div>
+        <div id="vx-score"></div>
         <div class="rl" id="vx-rl"></div>
         <div class="stt" id="vx-stt"></div>
+        <div id="vx-weeknav">
+          <button type="button" id="vx-week-prev" title="Earlier week">‹</button>
+          <span class="wk-label" id="vx-week-label"></span>
+          <button type="button" id="vx-week-next" title="Later week">›</button>
+        </div>
       </div>
       <div class="log" id="vx-log"></div>
       <form id="vx-form"><input id="vx-input" placeholder="or type a student's name" autocomplete="off"><button>Call</button></form>
@@ -191,7 +258,9 @@
     <div id="detail"></div>
 
     <div style="margin-top:24px; text-align:center;">
+      <button id="planner-toggle">📅 Term Planner</button>
       <button id="persona-toggle">✏️ My Assistant's Persona</button>
+      <div id="planner-panel"></div>
       <div id="persona-panel">
         <label>Voice / tone notes (grounds the parent-facing digital twin)</label>
         <textarea id="persona-notes"></textarea>
@@ -207,8 +276,46 @@ const DOMAIN_COLORS = {'--d1':'var(--d1)','--d2':'var(--d2)','--d3':'var(--d3)',
 let token = localStorage.getItem('civitas_token') || '';
 let roster = [];
 let domainsById = {};
+let domainsList = [];
 let currentClassId = null;
 let activeStudentId = null;
+let studentHistory = {};       // studentId -> {progressions:[], homeworks:[]}
+let currentWeekInfo = null;    // from GET /classes/{id}/current-week
+let currentTerm = null;        // most recent Term for this class
+let voiceWeeks = [];           // grouped weekly cards for the active student, ascending
+let voiceWeekIdx = -1;
+
+function scoreBand(score) {
+  if (score == null) return null;
+  if (score >= 75) return {label:'Blooming', color:'var(--accent2)'};
+  if (score >= 45) return {label:'Growing', color:'var(--d4)'};
+  return {label:'Sprouting', color:'var(--d5)'};
+}
+function mondayOf(d) {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return date.toISOString().slice(0, 10);
+}
+function formatWeek(weekStart) {
+  const d = new Date(weekStart + 'T00:00:00');
+  return 'Week of ' + d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+}
+function groupWeeklyCards(progressions, homeworks) {
+  const weeks = {};
+  (progressions||[]).forEach(p => {
+    weeks[p.week_start] = weeks[p.week_start] || {week_start: p.week_start, domains: {}};
+    weeks[p.week_start].domains[p.domain_id] = weeks[p.week_start].domains[p.domain_id] || {};
+    weeks[p.week_start].domains[p.domain_id].progression = p;
+  });
+  (homeworks||[]).forEach(h => {
+    weeks[h.week_start] = weeks[h.week_start] || {week_start: h.week_start, domains: {}};
+    weeks[h.week_start].domains[h.domain_id] = weeks[h.week_start].domains[h.domain_id] || {};
+    weeks[h.week_start].domains[h.domain_id].homework = h;
+  });
+  return Object.values(weeks);
+}
 
 function api(path, opts={}) {
   opts.headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
@@ -252,6 +359,7 @@ async function boot() {
   document.getElementById('app').style.display = 'block';
 
   const [domains, classes] = await Promise.all([api('/domains'), api('/classes/mine')]);
+  domainsList = domains;
   domains.forEach(d => domainsById[d.id] = d);
 
   if (!classes.length) {
@@ -262,6 +370,17 @@ async function boot() {
   document.getElementById('class-name').textContent = classes[0].name;
   await loadRoster();
   await loadPersona();
+  await loadPlannerData();
+}
+
+async function loadStudentHistory(studentId) {
+  if (studentHistory[studentId]) return studentHistory[studentId];
+  const [progressions, homeworks] = await Promise.all([
+    api(`/progression-cards/student/${studentId}`),
+    api(`/homework-cards/student/${studentId}`),
+  ]);
+  studentHistory[studentId] = {progressions, homeworks};
+  return studentHistory[studentId];
 }
 
 async function loadRoster() {
@@ -313,6 +432,11 @@ function callOn(studentId, spoken) {
     }
     html += `</div>`;
   }
+
+  // Weekly cards (per-domain, grouped by week) — filled in once history loads.
+  html += `<div id="wc-section"><h3>Weekly cards</h3><div id="wc-strip"><div class="empty">Loading…</div></div></div>`;
+  html += buildAddCardFormHTML(studentId);
+
   document.getElementById('detail').innerHTML = html;
   document.getElementById('detail').style.display = 'block';
 
@@ -329,6 +453,8 @@ function callOn(studentId, spoken) {
     vxCore.textContent = initials;
     vxName.textContent = s.full_name;
     vxRl.textContent = s.latest_progression ? s.latest_progression.observation : 'No progression notes recorded yet.';
+    document.getElementById('vx-score').style.display = 'none';
+    document.getElementById('vx-weeknav').style.display = 'none';
     bubble('a', spokenText);
     renderVoiceRail();
     chime();
@@ -336,7 +462,215 @@ function callOn(studentId, spoken) {
   }
 
   speak(spokenText, () => { if (vx.classList.contains('show')) state('listen'); });
+
+  // Load full history in the background (cached per student) to fill the
+  // weekly-cards strip and, on the voice screen, the current week's score
+  // ring plus prev/next week navigation.
+  loadStudentHistory(studentId).then(() => {
+    if (activeStudentId !== studentId) return;
+    const stripEl = document.getElementById('wc-strip');
+    if (stripEl) stripEl.innerHTML = renderWeeklyCardsStrip(studentId);
+    loadVoiceWeeksForStudent(studentId);
+    renderVoiceWeekCard();
+  });
 }
+
+// Re-renders the detail panel + weekly-cards strip for the currently
+// active student without re-speaking or re-chiming — used after saving
+// a new progress note / reinforcement so the teacher sees it land.
+async function refreshActiveStudent() {
+  if (!activeStudentId) return;
+  const studentId = activeStudentId;
+  delete studentHistory[studentId];
+  await loadRoster();
+  activeStudentId = studentId;
+  document.querySelectorAll('.tile').forEach(t => t.classList.toggle('active', t.dataset.id === studentId));
+  const s = roster.find(r => r.id === studentId);
+  if (!s) return;
+
+  let html = `<h2>${s.full_name}</h2>`;
+  if (s.latest_progression) {
+    html += domainTag(s.latest_progression.domain_id);
+    html += `<div class="block"><h3>This week in class</h3><p>${s.latest_progression.observation}</p>`;
+    if (s.latest_progression.needs_improvement) html += `<div class="needs">Needs work: ${s.latest_progression.needs_improvement}</div>`;
+    html += `</div>`;
+  } else {
+    html += `<div class="block"><p style="color:var(--ink-dim);">No progression notes recorded yet.</p></div>`;
+  }
+  if (s.latest_homework) {
+    html += `<div class="block"><h3>Homework — ${s.latest_homework.title}</h3><p>${s.latest_homework.instructions}</p></div>`;
+  }
+  html += `<div id="wc-section"><h3>Weekly cards</h3><div id="wc-strip"><div class="empty">Loading…</div></div></div>`;
+  html += buildAddCardFormHTML(studentId);
+  document.getElementById('detail').innerHTML = html;
+  document.getElementById('detail').style.display = 'block';
+
+  await loadStudentHistory(studentId);
+  const stripEl = document.getElementById('wc-strip');
+  if (stripEl) stripEl.innerHTML = renderWeeklyCardsStrip(studentId);
+  loadVoiceWeeksForStudent(studentId);
+  renderVoiceWeekCard();
+}
+
+function renderWeeklyCardsStrip(studentId) {
+  const hist = studentHistory[studentId];
+  if (!hist) return '<div class="empty">Loading…</div>';
+  const weeks = groupWeeklyCards(hist.progressions, hist.homeworks).sort((a,b) => b.week_start.localeCompare(a.week_start));
+  if (!weeks.length) return '<div class="empty">No weekly cards yet — add one below.</div>';
+  return weeks.map(weekCardHTML).join('');
+}
+
+function weekCardHTML(w) {
+  const bodies = Object.entries(w.domains).map(([domainId, entry]) => {
+    const d = domainsById[domainId];
+    const color = d ? (DOMAIN_COLORS[d.color_hint] || 'var(--accent)') : 'var(--accent)';
+    let inner = `<div class="wc-domain" style="border-left:3px solid ${color}">
+      <div class="wc-domain-name" style="color:${color}">${d ? d.name : 'Domain'}</div>`;
+    if (entry.progression) {
+      const band = scoreBand(entry.progression.stage_score);
+      inner += `<p class="wc-obs">${entry.progression.observation}</p>`;
+      if (band) inner += `<div class="wc-score" style="color:${band.color}">${band.label} · ${entry.progression.stage_score}</div>`;
+      if (entry.progression.needs_improvement) inner += `<div class="needs">Needs work: ${entry.progression.needs_improvement}</div>`;
+    }
+    if (entry.homework) {
+      inner += `<div class="wc-reinforcement"><strong>${entry.homework.title}</strong><p>${entry.homework.instructions}</p></div>`;
+    }
+    inner += `</div>`;
+    return inner;
+  }).join('');
+  return `<div class="wcard"><div class="wcard-head">${formatWeek(w.week_start)}</div>${bodies}</div>`;
+}
+
+function buildAddCardFormHTML(studentId) {
+  const defaultWeek = currentWeekInfo ? currentWeekInfo.week_start : mondayOf(new Date());
+  const domainOptions = domainsList.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+  return `
+    <button type="button" class="btn-add" onclick="toggleAddCard()">+ New weekly entry</button>
+    <div id="addcard-panel">
+      <div class="addcard-grid">
+        <div><label>Domain</label><select id="ac-domain">${domainOptions}</select></div>
+        <div><label>Week starting (Monday)</label><input type="date" id="ac-week" value="${defaultWeek}"></div>
+      </div>
+      <h4>Progress note</h4>
+      <textarea id="ac-observation" placeholder="What did you observe this week?"></textarea>
+      <label>Score: <span id="ac-score-val">Growing · 70</span></label>
+      <input type="range" id="ac-score" min="0" max="100" value="70"
+        oninput="document.getElementById('ac-score-val').textContent = scoreBand(+this.value).label + ' · ' + this.value">
+      <input type="text" id="ac-needs" placeholder="Needs improvement (optional)">
+      <button type="button" class="btn-primary" onclick="submitProgressNote('${studentId}')">Save progress note</button>
+      <h4>Reinforcement (homework)</h4>
+      <input type="text" id="ac-hw-title" placeholder="Title">
+      <textarea id="ac-hw-instructions" placeholder="What should be practiced at home?"></textarea>
+      <button type="button" class="btn-primary" onclick="submitReinforcement('${studentId}')">Save reinforcement</button>
+      <div id="ac-status"></div>
+    </div>`;
+}
+
+function toggleAddCard() {
+  const p = document.getElementById('addcard-panel');
+  if (p) p.style.display = p.style.display === 'block' ? 'none' : 'block';
+}
+
+async function submitProgressNote(studentId) {
+  const domain_id = document.getElementById('ac-domain').value;
+  const week_start = document.getElementById('ac-week').value;
+  const observation = document.getElementById('ac-observation').value.trim();
+  const stage_score = +document.getElementById('ac-score').value;
+  const needs_improvement = document.getElementById('ac-needs').value.trim() || null;
+  const statusEl = document.getElementById('ac-status');
+  if (!observation) { statusEl.textContent = 'Add an observation first.'; return; }
+  try {
+    await api('/progression-cards', {method:'POST', body: JSON.stringify({
+      student_id: studentId, domain_id, week_start, observation, stage_score, needs_improvement,
+    })});
+    statusEl.textContent = 'Saved ✓';
+    document.getElementById('ac-observation').value = '';
+    document.getElementById('ac-needs').value = '';
+    await refreshActiveStudent();
+  } catch (e) {
+    statusEl.textContent = 'Could not save.';
+  }
+}
+
+async function submitReinforcement(studentId) {
+  const domain_id = document.getElementById('ac-domain').value;
+  const week_start = document.getElementById('ac-week').value;
+  const title = document.getElementById('ac-hw-title').value.trim();
+  const instructions = document.getElementById('ac-hw-instructions').value.trim();
+  const statusEl = document.getElementById('ac-status');
+  if (!title || !instructions) { statusEl.textContent = 'Add a title and instructions first.'; return; }
+  try {
+    await api('/homework-cards', {method:'POST', body: JSON.stringify({
+      student_id: studentId, domain_id, week_start, title, instructions,
+    })});
+    statusEl.textContent = 'Saved ✓';
+    document.getElementById('ac-hw-title').value = '';
+    document.getElementById('ac-hw-instructions').value = '';
+    await refreshActiveStudent();
+  } catch (e) {
+    statusEl.textContent = 'Could not save.';
+  }
+}
+
+function loadVoiceWeeksForStudent(studentId) {
+  const hist = studentHistory[studentId];
+  if (!hist) { voiceWeeks = []; voiceWeekIdx = -1; return; }
+  voiceWeeks = groupWeeklyCards(hist.progressions, hist.homeworks).sort((a,b) => a.week_start.localeCompare(b.week_start));
+  if (!voiceWeeks.length) { voiceWeekIdx = -1; return; }
+  let idx = -1;
+  if (currentWeekInfo && currentWeekInfo.week_start) idx = voiceWeeks.findIndex(w => w.week_start === currentWeekInfo.week_start);
+  voiceWeekIdx = idx >= 0 ? idx : voiceWeeks.length - 1;
+}
+
+function renderVoiceWeekCard() {
+  const nav = document.getElementById('vx-weeknav');
+  const scoreWrap = document.getElementById('vx-score');
+  if (!vx.classList.contains('show')) return;
+  if (voiceWeekIdx < 0 || !voiceWeeks.length) {
+    nav.style.display = 'none';
+    scoreWrap.style.display = 'none';
+    return;
+  }
+  const w = voiceWeeks[voiceWeekIdx];
+  nav.style.display = 'flex';
+  document.getElementById('vx-week-label').textContent =
+    formatWeek(w.week_start) + (voiceWeeks.length > 1 ? ` (${voiceWeekIdx + 1} of ${voiceWeeks.length})` : '');
+  document.getElementById('vx-week-prev').disabled = voiceWeekIdx <= 0;
+  document.getElementById('vx-week-next').disabled = voiceWeekIdx >= voiceWeeks.length - 1;
+
+  const entries = Object.values(w.domains);
+  const obsParts = entries.filter(e => e.progression).map(e => e.progression.observation);
+  vxRl.textContent = obsParts.length ? obsParts.join(' · ') : 'No progress note for this week.';
+
+  const scored = entries.find(e => e.progression && e.progression.stage_score != null);
+  if (scored) {
+    const score = scored.progression.stage_score;
+    const band = scoreBand(score);
+    scoreWrap.style.display = 'block';
+    scoreWrap.textContent = `${band.label} · ${score}`;
+    scoreWrap.style.color = band.color;
+    setScoreRing(score, band.color);
+  } else {
+    scoreWrap.style.display = 'none';
+    setScoreRing(0, 'transparent');
+  }
+}
+
+function setScoreRing(score, color) {
+  const circle = document.getElementById('vx-ring-fg');
+  const r = 102;
+  const c = 2 * Math.PI * r;
+  circle.style.strokeDasharray = `${c}`;
+  circle.style.strokeDashoffset = `${c * (1 - score / 100)}`;
+  circle.style.stroke = color;
+}
+
+document.getElementById('vx-week-prev').onclick = () => {
+  if (voiceWeekIdx > 0) { voiceWeekIdx--; renderVoiceWeekCard(); }
+};
+document.getElementById('vx-week-next').onclick = () => {
+  if (voiceWeekIdx < voiceWeeks.length - 1) { voiceWeekIdx++; renderVoiceWeekCard(); }
+};
 
 function speak(text, onDone) {
   if (!('speechSynthesis' in window)) { if (onDone) onDone(); return; }
@@ -514,6 +848,88 @@ function matchAndCall(said) {
     state('listen', 'try again, or tap a student');
     speak("I didn't catch a name I recognize. Try again, or tap a student.");
   }
+}
+
+/* --- Term Planner --- */
+document.getElementById('planner-toggle').onclick = () => {
+  const p = document.getElementById('planner-panel');
+  const showing = p.style.display === 'block';
+  p.style.display = showing ? 'none' : 'block';
+  if (!showing) renderPlannerPanel();
+};
+
+async function loadPlannerData() {
+  try {
+    currentWeekInfo = await api(`/classes/${currentClassId}/current-week`);
+  } catch (e) {
+    currentWeekInfo = null;
+  }
+  try {
+    const terms = await api(`/classes/${currentClassId}/terms`);
+    currentTerm = terms.length ? terms[0] : null;
+  } catch (e) {
+    currentTerm = null;
+  }
+}
+
+function renderPlannerPanel() {
+  const el = document.getElementById('planner-panel');
+  if (!currentTerm) {
+    const today = mondayOf(new Date());
+    el.innerHTML = `
+      <h4>Set up this term</h4>
+      <div class="planner-create-grid">
+        <div><label>Term name</label><input type="text" id="pl-name" placeholder="Term 1" value="Term 1"></div>
+        <div><label>Start (Monday)</label><input type="date" id="pl-start" value="${today}"></div>
+        <div><label>Weeks</label><input type="number" id="pl-weeks" value="10" min="1" max="52"></div>
+      </div>
+      <button type="button" class="btn-primary" style="width:auto; margin-top:12px;" onclick="createTerm()">Create term</button>
+      <span id="planner-status"></span>`;
+    return;
+  }
+  const weeksHtml = currentTerm.weeks.map(w => {
+    const isCurrent = currentWeekInfo && currentWeekInfo.week_id === w.id;
+    const domainRows = domainsList.map(d => {
+      const plan = (w.plans || []).find(p => p.domain_id === d.id);
+      return `<div class="planner-domain-row">
+        <span class="pd-name">${d.name}</span>
+        <input type="text" id="pw-${w.id}-${d.id}" placeholder="Planned focus…" value="${plan ? plan.focus.replace(/"/g,'&quot;') : ''}">
+        <button type="button" onclick="saveWeekPlan('${w.id}','${d.id}')">Save</button>
+      </div>`;
+    }).join('');
+    return `<div class="planner-week">
+      <div class="planner-week-head">Week ${w.week_number} · ${formatWeek(w.week_start)} ${isCurrent ? '<span class="wk-cur">Current</span>' : ''}</div>
+      ${domainRows}
+    </div>`;
+  }).join('');
+  el.innerHTML = `<h4>${currentTerm.name} — ${currentTerm.num_weeks} weeks</h4>${weeksHtml}`;
+}
+
+async function createTerm() {
+  const name = document.getElementById('pl-name').value.trim() || 'Term 1';
+  const start_date = document.getElementById('pl-start').value;
+  const num_weeks = +document.getElementById('pl-weeks').value;
+  const statusEl = document.getElementById('planner-status');
+  try {
+    currentTerm = await api('/terms', {method:'POST', body: JSON.stringify({
+      class_section_id: currentClassId, name, start_date, num_weeks,
+    })});
+    try { currentWeekInfo = await api(`/classes/${currentClassId}/current-week`); } catch (e) { currentWeekInfo = null; }
+    renderPlannerPanel();
+  } catch (e) {
+    if (statusEl) statusEl.textContent = 'Could not create term.';
+  }
+}
+
+async function saveWeekPlan(weekId, domainId) {
+  const input = document.getElementById(`pw-${weekId}-${domainId}`);
+  const focus = input.value.trim();
+  if (!focus) return;
+  try {
+    await api(`/term-weeks/${weekId}/plan`, {method:'PUT', body: JSON.stringify({domain_id: domainId, focus})});
+    const term = await api(`/terms/${currentTerm.id}`);
+    currentTerm = term;
+  } catch (e) {}
 }
 
 /* --- Persona settings --- */
