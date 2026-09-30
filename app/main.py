@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.routers import auth, classes, progression, homework, twin
+from app.routers import auth, classes, progression, homework, twin, admin
 
 # Phase 1: create tables directly from the models on startup. This is
 # intentionally not Alembic yet — fine for getting a first deploy up
@@ -25,6 +25,7 @@ app.include_router(classes.router)
 app.include_router(progression.router)
 app.include_router(homework.router)
 app.include_router(twin.router)
+app.include_router(admin.router)
 
 
 @app.get("/health")

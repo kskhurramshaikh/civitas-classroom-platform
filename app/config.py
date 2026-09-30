@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_model: str = "anthropic/claude-3.5-sonnet"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    seed_token: str = ""  # set on Render only when running the one-off /admin/seed-demo endpoint
 
     class Config:
         env_file = ".env"
