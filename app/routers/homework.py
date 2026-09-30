@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
@@ -7,6 +9,8 @@ from app.schemas import HomeworkCardCreate, HomeworkCardOut
 from app.security import require_role, get_current_user
 from app.permissions import assert_can_access_student
 from app.services.content_generation import generate_activity_for_homework
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/homework-cards", tags=["homework"])
 
@@ -34,7 +38,10 @@ async def create_homework_card(
         db.commit()
         db.refresh(card)
     except Exception:
-        pass
+        # Never fail card creation over generation trouble, but do log it —
+        # a silent `except: pass` here previously made a real production
+        # failure (see below) invisible in the logs.
+        logger.exception("Activity generation failed for homework_card_id=%s", card.id)
 
     return card
 
