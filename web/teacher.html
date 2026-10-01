@@ -160,6 +160,7 @@
   .wc-reinforcement p{margin:0; color:var(--ink-dim);}
 
   /* --- Add weekly entry (progress note / reinforcement) form --- */
+  .voice-hint{margin-top:16px; padding:10px 14px; border-radius:10px; background:rgba(94,230,196,.1); color:var(--accent2); font-size:12.5px; line-height:1.5;}
   .btn-add{background:var(--panel2); color:var(--accent2); border:1px dashed var(--line); padding:8px 14px; font-size:13px; margin-top:14px;}
   .btn-add:hover{border-color:var(--accent2);}
   #addcard-panel{margin-top:14px; background:var(--panel2); border-radius:12px; padding:16px;}
@@ -545,6 +546,7 @@ function buildAddCardFormHTML(studentId) {
   const defaultWeek = currentWeekInfo ? currentWeekInfo.week_start : mondayOf(new Date());
   const domainOptions = domainsList.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
   return `
+    <div class="voice-hint">🎤 Just talk — with this student called up, say what you observed or the homework to send home, and it drafts below. Typing is still here if you'd rather.</div>
     <button type="button" class="btn-add" onclick="toggleAddCard()">+ New weekly entry</button>
     <div id="addcard-panel">
       <div class="addcard-grid">
@@ -810,7 +812,7 @@ if (!SpeechRec) {
       stopListeningUI();
       bubble('n', 'Still stuck? Reload the page and check the mic icon in the address bar.');
       state('listen', 'tap the mic to try again');
-    }, 8000);
+    }, 18000); // generous: dictating a full observation runs longer than "call on <name>"
   };
   rec.onstart = () => { recognizing = true; vfab.classList.add('on'); chime(); state('listen'); };
   rec.onend = () => { stopListeningUI(); };
@@ -837,17 +839,82 @@ if (!SpeechRec) {
 
 function matchAndCall(said) {
   const lower = said.toLowerCase();
+  // Voice is the primary interaction: most utterances while a student
+  // is already pulled up aren't a new "call on" command, they're the
+  // teacher dictating that student's weekly entry ("Zayan sorted
+  // blocks by color today, maybe an 80..."). Only treat it as a call
+  // command when she explicitly says so, or names a DIFFERENT student
+  // than the one already active — otherwise it's dictation.
+  const explicitCall = /^(call on|call|get|bring up|pull up)\b/.test(lower);
   const match = roster.find(s => {
     const first = s.full_name.split(' ')[0].toLowerCase();
     return lower.includes(first);
   });
+
+  if (match && (explicitCall || match.id !== activeStudentId)) {
+    callOn(match.id);
+    return;
+  }
+  if (activeStudentId) {
+    dictateEntryFor(activeStudentId, said);
+    return;
+  }
   if (match) {
     callOn(match.id);
-  } else {
-    bubble('n', "Didn't catch a name I recognize.");
-    state('listen', 'try again, or tap a student');
-    speak("I didn't catch a name I recognize. Try again, or tap a student.");
+    return;
   }
+  bubble('n', "Didn't catch a name I recognize.");
+  state('listen', 'try again, or tap a student');
+  speak("I didn't catch a name I recognize. Try again, or tap a student.");
+}
+
+// Turns a dictated, informal transcript into a structured draft via
+// the voice-parse endpoint and fills the (still-manual, now secondary)
+// add-card form with it. Never auto-saves — the teacher reviews and
+// taps Save herself, so a misheard word is always caught.
+async function dictateEntryFor(studentId, transcript) {
+  const panel = document.getElementById('addcard-panel');
+  if (panel) panel.style.display = 'block';
+  state('think');
+  try {
+    const parsed = await api('/voice/parse-entry', {method: 'POST', body: JSON.stringify({
+      student_id: studentId, transcript,
+    })});
+    applyDictatedEntry(parsed);
+    const confirmMsg = parsed.entry_type === 'reinforcement'
+      ? `Drafted a reinforcement — "${parsed.title || transcript}". Review and save when ready.`
+      : parsed.entry_type === 'progress_note'
+      ? "Drafted a progress note from that. Review and save when ready."
+      : "I heard that, but couldn't tell if it's a progress note or homework — I've put it in the notes below, just pick one and save.";
+    bubble('a', confirmMsg);
+    speak(confirmMsg, () => state('listen'));
+  } catch (e) {
+    bubble('n', "Couldn't process that note — try again, or type it in below.");
+    state('listen', 'tap the mic to try again');
+  }
+}
+
+function applyDictatedEntry(parsed) {
+  const statusEl = document.getElementById('ac-status');
+  if (parsed.domain_id) {
+    const sel = document.getElementById('ac-domain');
+    if (sel) sel.value = parsed.domain_id;
+  }
+  if (parsed.entry_type === 'reinforcement') {
+    document.getElementById('ac-hw-title').value = parsed.title || '';
+    document.getElementById('ac-hw-instructions').value = parsed.instructions || parsed.raw_transcript || '';
+    document.getElementById('ac-hw-instructions').scrollIntoView({behavior: 'smooth', block: 'center'});
+  } else {
+    document.getElementById('ac-observation').value = parsed.observation || parsed.raw_transcript || '';
+    if (parsed.needs_improvement) document.getElementById('ac-needs').value = parsed.needs_improvement;
+    if (parsed.stage_score != null) {
+      const scoreInput = document.getElementById('ac-score');
+      scoreInput.value = parsed.stage_score;
+      document.getElementById('ac-score-val').textContent = scoreBand(parsed.stage_score).label + ' · ' + parsed.stage_score;
+    }
+    document.getElementById('ac-observation').scrollIntoView({behavior: 'smooth', block: 'center'});
+  }
+  if (statusEl) statusEl.textContent = '🎤 Drafted from your voice note — review and save.';
 }
 
 /* --- Term Planner --- */
