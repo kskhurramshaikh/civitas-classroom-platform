@@ -84,7 +84,21 @@
   .msg.escalated{font-size:12px; color:#b8860b; margin-top:2px;}
   #chat-input-row{display:flex; border-top:1px solid var(--line); padding:8px;}
   #chat-input-row input{margin:0; flex:1;}
+  #chat-mic{width:auto; padding:0 12px; margin-left:6px; background:#f4f2ec; color:var(--accent); font-size:16px;}
+  #chat-mic.on{background:var(--accent); color:#fff; animation:chatmicpulse 1.1s ease-in-out infinite;}
+  @keyframes chatmicpulse{0%,100%{box-shadow:0 0 0 0 rgba(91,107,214,.35);} 50%{box-shadow:0 0 0 8px rgba(91,107,214,0);}}
   #chat-send{width:auto; padding:0 14px; margin-left:6px; background:var(--accent); color:#fff;}
+
+  /* --- Voice-first entry point: the primary way to ask about your child --- */
+  #voice-ask{display:flex; align-items:center; gap:14px; background:var(--panel); border-radius:var(--radius);
+    padding:18px 20px; margin-bottom:24px; box-shadow:0 2px 10px rgba(0,0,0,.04); cursor:pointer; border:1px solid var(--line);}
+  #voice-ask:hover{border-color:var(--accent);}
+  #voice-ask .orb{width:46px; height:46px; border-radius:50%; background:var(--accent); color:#fff; font-size:20px;
+    display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
+  #voice-ask.on .orb{animation:chatmicpulse 1.1s ease-in-out infinite;}
+  #voice-ask .va-copy{flex:1;}
+  #voice-ask .va-title{font-weight:600; font-size:15px;}
+  #voice-ask .va-sub{color:var(--ink-dim); font-size:13px; margin-top:2px;}
 
   .empty{color:var(--ink-dim); text-align:center; padding:30px 0;}
 </style>
@@ -110,6 +124,14 @@
       </div>
     </header>
 
+    <div id="voice-ask">
+      <div class="orb">🎤</div>
+      <div class="va-copy">
+        <div class="va-title" id="voice-ask-title">Ask about your child</div>
+        <div class="va-sub" id="voice-ask-sub">Tap and just ask — "How is counting going?" The cards below are there if you'd rather read.</div>
+      </div>
+    </div>
+
     <h2 class="section">This week, by area</h2>
     <div id="domain-grid"></div>
 
@@ -131,6 +153,7 @@
   <div id="chat-messages"></div>
   <div id="chat-input-row">
     <input id="chat-input" placeholder="Ask about your child…" />
+    <button id="chat-mic" title="Speak your question">🎤</button>
     <button id="chat-send">Send</button>
   </div>
 </div>
@@ -317,9 +340,92 @@ async function sendChat() {
   try {
     const res = await api('/twin/chat', {method:'POST', body: JSON.stringify({student_id: currentChild.id, message: text})});
     appendMsg('assistant', res.reply, res.escalated);
+    speakReply(res.reply);
   } catch (e) {
     appendMsg('assistant', "Sorry, I couldn't reach the assistant just now.");
   }
+}
+
+/* --- Voice I/O: speech-to-text in, text-to-speech out. This is the
+   PRIMARY way a parent asks about their child — the chat panel's
+   typed input stays as a fallback, and the domain/homework cards
+   below stay as the secondary, read-it-yourself view. --- */
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizing = false;
+let rec = null;
+const chatMic = document.getElementById('chat-mic');
+const voiceAsk = document.getElementById('voice-ask');
+const voiceAskSub = document.getElementById('voice-ask-sub');
+const VOICE_ASK_DEFAULT_SUB = voiceAskSub ? voiceAskSub.textContent : '';
+
+if (!SpeechRec) {
+  if (voiceAskSub) voiceAskSub.textContent = 'Voice needs Chrome on this device — type your question below instead.';
+  if (chatMic) chatMic.style.display = 'none';
+} else {
+  rec = new SpeechRec();
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.lang = 'en-US';
+
+  let listenTimeout = null;
+  function clearListenTimeout() { if (listenTimeout) { clearTimeout(listenTimeout); listenTimeout = null; } }
+  function stopListeningUI() {
+    recognizing = false;
+    chatMic.classList.remove('on');
+    voiceAsk.classList.remove('on');
+    clearListenTimeout();
+  }
+  function startListening() {
+    if (!currentChild) return;
+    chatPanel.classList.add('open');
+    window.speechSynthesis.cancel();
+    try {
+      rec.start();
+    } catch (e) {
+      // Most commonly: a previous session is still tearing down.
+      stopListeningUI();
+      appendMsg('assistant', "Mic didn't start — tap the mic to try again.");
+      return;
+    }
+    listenTimeout = setTimeout(() => { rec.stop(); stopListeningUI(); }, 15000);
+  }
+  rec.onstart = () => {
+    recognizing = true;
+    chatMic.classList.add('on');
+    voiceAsk.classList.add('on');
+    if (voiceAskSub) voiceAskSub.textContent = 'Listening…';
+  };
+  rec.onend = () => {
+    stopListeningUI();
+    if (voiceAskSub) voiceAskSub.textContent = VOICE_ASK_DEFAULT_SUB;
+  };
+  rec.onerror = (e) => {
+    stopListeningUI();
+    const messages = {
+      'not-allowed': 'Microphone access is blocked for this page — click the mic icon in the address bar to allow it.',
+      'service-not-allowed': 'Microphone access is blocked for this page — click the mic icon in the address bar to allow it.',
+      'no-speech': "Didn't hear anything — tap the mic and try again.",
+      'audio-capture': 'No microphone found on this device.',
+      'network': 'Voice needs an internet connection — check yours and try again.',
+    };
+    appendMsg('assistant', messages[e.error] || "Didn't catch that — tap the mic to try again.");
+  };
+  rec.onresult = (e) => {
+    clearListenTimeout();
+    document.getElementById('chat-input').value = e.results[0][0].transcript;
+    sendChat();
+  };
+
+  chatMic.onclick = () => { if (recognizing) rec.stop(); else startListening(); };
+  voiceAsk.onclick = () => { if (recognizing) rec.stop(); else startListening(); };
+}
+
+function speakReply(text) {
+  if (!('speechSynthesis' in window) || !text) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 1.0;
+  window.speechSynthesis.speak(u);
 }
 
 function appendMsg(role, text, escalated) {
