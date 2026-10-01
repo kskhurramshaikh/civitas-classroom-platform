@@ -206,3 +206,26 @@ class CurrentWeekOut(BaseModel):
     week_number: int
     week_start: date
     all_weeks: list[TermWeekOut] = []
+
+
+# ---- Voice-dictated entry parsing ----
+# Voice is the primary way a teacher adds a weekly card; the typed
+# add-card form is the fallback. This endpoint turns a spoken,
+# informal transcript into a structured draft — it is never saved on
+# its own, the frontend fills the existing form with it so the
+# teacher still reviews and taps Save.
+
+class VoiceEntryParseRequest(BaseModel):
+    student_id: str
+    transcript: str
+
+
+class VoiceEntryParseResponse(BaseModel):
+    entry_type: str  # "progress_note" | "reinforcement" | "unclear"
+    domain_id: Optional[str] = None
+    observation: Optional[str] = None
+    needs_improvement: Optional[str] = None
+    stage_score: Optional[int] = None
+    title: Optional[str] = None
+    instructions: Optional[str] = None
+    raw_transcript: str
