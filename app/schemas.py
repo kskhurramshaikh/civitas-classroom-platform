@@ -229,3 +229,33 @@ class VoiceEntryParseResponse(BaseModel):
     title: Optional[str] = None
     instructions: Optional[str] = None
     raw_transcript: str
+
+
+# ---- Conversational voice screen ----
+# The voice screen is the primary way a teacher does everything — call
+# on a student, hear their current progress/reinforcement read back,
+# navigate by week, and dictate an update — without dropping back to
+# the typed add-card form. Each turn sends the small bit of
+# conversation state the frontend is holding (who's active, what week,
+# and whether we're mid-way through an update) and gets back what to
+# say, what to show, and a couple of next-step suggestions.
+
+class VoiceConverseRequest(BaseModel):
+    class_section_id: str
+    transcript: str
+    active_student_id: Optional[str] = None
+    active_week_number: Optional[int] = None
+    pending_action: Optional[str] = None
+    pending_payload: Optional[dict] = None
+
+
+class VoiceConverseResponse(BaseModel):
+    speak: str
+    active_student_id: Optional[str] = None
+    active_week_number: Optional[int] = None
+    active_week_start: Optional[str] = None
+    pending_action: Optional[str] = None
+    pending_payload: Optional[dict] = None
+    ui_action: str = "none"   # "focus_student" | "show_week" | "none"
+    suggestions: list[str] = []
+    saved: bool = False

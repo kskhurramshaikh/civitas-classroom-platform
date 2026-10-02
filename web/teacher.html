@@ -102,6 +102,11 @@
   #vx input{flex:1; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15); border-radius:12px; color:var(--ink);
     padding:10px 12px; font:inherit;} #vx input:focus{outline:none; border-color:hsl(var(--h),70%,60%);}
   #vx form button{background:hsl(var(--h),55%,40%); border:0; color:#fff; border-radius:12px; padding:0 16px; cursor:pointer; font:inherit;}
+  #vx .suggestions{position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
+    width:min(680px,calc(100% - 32px)); margin-top:14px;}
+  #vx .sug{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.18); color:var(--ink);
+    border-radius:99px; padding:7px 14px; font-size:12.5px; cursor:pointer; transition:all .15s;}
+  #vx .sug:hover{background:hsla(var(--h),60%,45%,.35); border-color:hsl(var(--h),70%,60%);}
   #vx .hint{position:relative; z-index:1; color:var(--ink-dim); font-size:12px; margin-bottom:16px; text-align:center; padding:0 16px;}
   @media(max-width:1000px){
     #vx .main{padding:120px 12px 0;} #vx .stage{margin-top:2vh;}
@@ -240,8 +245,9 @@
         </div>
       </div>
       <div class="log" id="vx-log"></div>
+      <div class="suggestions" id="vx-suggestions"></div>
       <form id="vx-form"><input id="vx-input" placeholder="or type a student's name" autocomplete="off"><button>Call</button></form>
-      <div class="hint" id="vx-hint">Say "call on &lt;name&gt;" or tap a student on the left · Esc to close</div>
+      <div class="hint" id="vx-hint">Just talk — call on a student, ask how they're doing, say "show week 3", or "update this week's reinforcement" · Esc to close</div>
     </div>
   </div>
 
@@ -407,7 +413,8 @@ function domainTag(domainId) {
   return `<span class="domain-tag" style="background:${color}22; color:${color};">${d.name}</span>`;
 }
 
-function callOn(studentId, spoken) {
+function callOn(studentId, spoken, opts) {
+  opts = opts || {};
   activeStudentId = studentId;
   document.querySelectorAll('.tile').forEach(t => t.classList.toggle('active', t.dataset.id === studentId));
   const s = roster.find(r => r.id === studentId);
@@ -456,13 +463,17 @@ function callOn(studentId, spoken) {
     vxRl.textContent = s.latest_progression ? s.latest_progression.observation : 'No progression notes recorded yet.';
     document.getElementById('vx-score').style.display = 'none';
     document.getElementById('vx-weeknav').style.display = 'none';
-    bubble('a', spokenText);
     renderVoiceRail();
-    chime();
-    state('speak');
+    if (!opts.silent) {
+      bubble('a', spokenText);
+      chime();
+      state('speak');
+    }
   }
 
-  speak(spokenText, () => { if (vx.classList.contains('show')) state('listen'); });
+  if (!opts.silent) {
+    speak(spokenText, () => { if (vx.classList.contains('show')) state('listen'); });
+  }
 
   // Load full history in the background (cached per student) to fill the
   // weekly-cards strip and, on the voice screen, the current week's score
@@ -624,6 +635,24 @@ function loadVoiceWeeksForStudent(studentId) {
   voiceWeekIdx = idx >= 0 ? idx : voiceWeeks.length - 1;
 }
 
+// Jumps the voice screen's week card to a specific week_start (ISO date),
+// used when the conversational endpoint names a week ("show me week 3")
+// rather than the teacher clicking prev/next. If that week has no cards
+// yet, a blank placeholder is spliced in at the right chronological spot
+// so "no progress note for this week" shows correctly and prev/next still
+// work from there.
+function jumpToWeekStart(weekStart) {
+  if (!weekStart) return;
+  let idx = voiceWeeks.findIndex(w => w.week_start === weekStart);
+  if (idx < 0) {
+    voiceWeeks.push({week_start: weekStart, domains: {}});
+    voiceWeeks.sort((a, b) => a.week_start.localeCompare(b.week_start));
+    idx = voiceWeeks.findIndex(w => w.week_start === weekStart);
+  }
+  voiceWeekIdx = idx;
+  renderVoiceWeekCard();
+}
+
 function renderVoiceWeekCard() {
   const nav = document.getElementById('vx-weeknav');
   const scoreWrap = document.getElementById('vx-score');
@@ -743,15 +772,42 @@ function bubble(cls, text) {
   while (vxLog.children.length > 6) vxLog.removeChild(vxLog.firstChild);
   vxLog.scrollTop = vxLog.scrollHeight;
 }
+// --- Conversational state (round-tripped to /voice/converse each turn) ---
+// The voice screen is the primary way to do everything here: call a
+// student, hear progress/a week read back, navigate weeks, dictate an
+// update. convoActive means "keep listening turn after turn" — the mic
+// isn't a press-to-talk button once a conversation has started, it's a
+// continuous back-and-forth until the teacher closes the screen or taps
+// the mic again to end it.
+let convoActive = false;
+let convoPendingAction = null;
+let convoPendingPayload = null;
+let activeWeekNumber = null;
+
+function renderSuggestions(list) {
+  const el = document.getElementById('vx-suggestions');
+  if (!list || !list.length) { el.innerHTML = ''; return; }
+  el.innerHTML = list.map(s => `<button type="button" class="sug">${s}</button>`).join('');
+}
+document.getElementById('vx-suggestions').addEventListener('click', (e) => {
+  const b = e.target.closest('.sug');
+  if (b) converseTurn(b.textContent);
+});
+
 function openVX() {
   vx.classList.add('show');
   renderVoiceRail();
   if (!activeStudentId) { vxCore.textContent = '🎙️'; vxName.textContent = 'Listening…'; vxRl.textContent = ''; }
+  renderSuggestions([]);
   state('listen');
 }
 function closeVX() {
   vx.classList.remove('show');
   vxLog.innerHTML = '';
+  renderSuggestions([]);
+  convoActive = false;
+  convoPendingAction = null;
+  convoPendingPayload = null;
   if (recognizing && rec) rec.stop();
 }
 document.getElementById('vx-close').onclick = closeVX;
@@ -761,7 +817,7 @@ document.getElementById('vx-form').onsubmit = (e) => {
   const input = document.getElementById('vx-input');
   const v = input.value.trim();
   input.value = '';
-  if (v) matchAndCall(v);
+  if (v) converseTurn(v);
 };
 
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -792,9 +848,27 @@ if (!SpeechRec) {
     vfab.classList.remove('on');
     clearListenTimeout();
   }
+  function armListenTimeout() {
+    listenTimeout = setTimeout(() => {
+      rec.stop();
+      stopListeningUI();
+      convoActive = false;
+      bubble('n', 'Still stuck? Reload the page and check the mic icon in the address bar.');
+      state('listen', 'tap the mic to try again');
+    }, 18000); // generous: dictating a full observation runs longer than "call on <name>"
+  }
+  // Restarts listening without re-chiming or re-opening — used between
+  // turns of an ongoing conversation so the teacher never has to tap the
+  // mic again mid-exchange, only to start and to end it.
+  function restartListening() {
+    if (!convoActive || !vx.classList.contains('show')) { state('listen', 'tap the mic to talk'); return; }
+    try { rec.start(); armListenTimeout(); }
+    catch (e) { /* already starting/stopping — the next onend will settle it */ }
+  }
 
   vfab.querySelector('.vm').onclick = () => {
-    if (recognizing) { rec.stop(); closeVX(); return; }
+    if (convoActive) { convoActive = false; if (recognizing) rec.stop(); closeVX(); return; }
+    convoActive = true;
     openVX();
     try {
       rec.start();
@@ -803,21 +877,24 @@ if (!SpeechRec) {
       // still tearing down (InvalidStateError). Reset and let the
       // teacher just tap again rather than leaving the button dead.
       stopListeningUI();
+      convoActive = false;
       bubble('n', "Mic didn't start — tap to try again.");
       state('listen', 'tap the mic to try again');
       return;
     }
-    listenTimeout = setTimeout(() => {
-      rec.stop();
-      stopListeningUI();
-      bubble('n', 'Still stuck? Reload the page and check the mic icon in the address bar.');
-      state('listen', 'tap the mic to try again');
-    }, 18000); // generous: dictating a full observation runs longer than "call on <name>"
+    armListenTimeout();
   };
   rec.onstart = () => { recognizing = true; vfab.classList.add('on'); chime(); state('listen'); };
   rec.onend = () => { stopListeningUI(); };
   rec.onerror = (e) => {
     stopListeningUI();
+    if (e.error === 'no-speech' && convoActive) {
+      // A pause is normal mid-conversation — just listen again quietly
+      // instead of treating silence as an error every time.
+      setTimeout(restartListening, 300);
+      return;
+    }
+    convoActive = false;
     const messages = {
       'not-allowed': 'Microphone access is blocked for this page — click the mic icon in the address bar to allow it.',
       'service-not-allowed': 'Microphone access is blocked for this page — click the mic icon in the address bar to allow it.',
@@ -833,8 +910,63 @@ if (!SpeechRec) {
     const said = e.results[0][0].transcript;
     bubble('m', `"${said}"`);
     state('think');
-    matchAndCall(said);
+    converseTurn(said);
   };
+
+  window._restartVoiceListening = restartListening;
+}
+
+// One turn of the conversational voice screen — call a student, hear
+// progress/a week read back, dictate an update, confirm a save — all
+// without leaving this screen. Replaces the old one-shot matchAndCall
+// for anything spoken into the mic (matchAndCall/dictateEntryFor below
+// are left in place as the engine behind the static add-card form).
+async function converseTurn(said) {
+  renderSuggestions([]);
+  try {
+    const res = await api('/voice/converse', {method: 'POST', body: JSON.stringify({
+      class_section_id: currentClassId,
+      transcript: said,
+      active_student_id: activeStudentId,
+      active_week_number: activeWeekNumber,
+      pending_action: convoPendingAction,
+      pending_payload: convoPendingPayload,
+    })});
+
+    convoPendingAction = res.pending_action || null;
+    convoPendingPayload = res.pending_payload || null;
+    activeWeekNumber = res.active_week_number || null;
+
+    if (res.active_student_id && res.active_student_id !== activeStudentId) {
+      callOn(res.active_student_id, null, {silent: true});
+    }
+    if (res.active_student_id && res.ui_action === 'show_week' && res.active_week_start) {
+      // loadVoiceWeeksForStudent (triggered by callOn's history load) may
+      // not have finished yet on a fresh call-on — give it a beat, then jump.
+      const tryJump = () => {
+        if (studentHistory[res.active_student_id]) jumpToWeekStart(res.active_week_start);
+        else setTimeout(tryJump, 150);
+      };
+      tryJump();
+    }
+
+    bubble('a', res.speak);
+    renderSuggestions(res.suggestions || []);
+    chime();
+    state('speak');
+    speak(res.speak, () => {
+      if (window._restartVoiceListening) window._restartVoiceListening();
+      else state('listen');
+    });
+
+    if (res.saved && activeStudentId) {
+      refreshActiveStudent();
+    }
+  } catch (e) {
+    bubble('n', "Couldn't reach the assistant just then — try again.");
+    state('listen', 'tap the mic to try again');
+    if (window._restartVoiceListening) window._restartVoiceListening();
+  }
 }
 
 function matchAndCall(said) {
