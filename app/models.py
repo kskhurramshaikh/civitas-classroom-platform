@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     Column, String, Text, Date, DateTime, ForeignKey, Enum, Integer,
-    UniqueConstraint,
+    Boolean, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -265,3 +265,43 @@ class WeekPlan(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     term_week = relationship("TermWeek", back_populates="plans")
+
+
+class VoiceConversationLog(Base):
+    """
+    Observability log for the Teacher Voice Screen — one row per
+    /voice/converse or /voice/parse-entry turn, recording exactly what
+    the teacher said and exactly what the system said back. Nothing in
+    app/services/voice_conversation.py or voice_entry.py ever reads
+    this table — it exists purely so real usage can be reviewed later
+    to find where teachers get stuck, and where the system has to fall
+    back to "I didn't catch that" instead of doing what was asked.
+
+    friction/friction_reason are a lightweight heuristic — a prefix
+    match against the dialogue manager's known fallback phrases (see
+    app/services/conversation_log.py), or entry_type == "unclear" for
+    the dictation parser. Not a hard guarantee every real failure is
+    caught, but enough to slice the log down to the turns worth
+    reading first.
+    """
+    __tablename__ = "voice_conversation_logs"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    source = Column(String, nullable=False, default="converse")  # "converse" | "parse_entry"
+    teacher_id = Column(UUID(as_uuid=False), ForeignKey("teachers.id"), nullable=True)
+    class_section_id = Column(UUID(as_uuid=False), ForeignKey("class_sections.id"), nullable=True)
+    student_id = Column(UUID(as_uuid=False), ForeignKey("students.id"), nullable=True)
+
+    transcript = Column(Text, nullable=False)   # what the teacher said
+    speak = Column(Text, nullable=False)        # what the system said back
+
+    pending_action_in = Column(String, nullable=True)    # conversation state the turn arrived in
+    pending_action_out = Column(String, nullable=True)   # conversation state the turn left in
+    ui_action = Column(String, nullable=True)
+    saved = Column(Boolean, default=False, nullable=False)
+
+    friction = Column(Boolean, default=False, nullable=False, index=True)
+    friction_reason = Column(String, nullable=True)
+
+    latency_ms = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

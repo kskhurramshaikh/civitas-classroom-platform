@@ -259,3 +259,38 @@ class VoiceConverseResponse(BaseModel):
     ui_action: str = "none"   # "focus_student" | "show_week" | "none"
     suggestions: list[str] = []
     saved: bool = False
+
+
+# ---- Voice conversation log (observability for Teacher Voice Screen) ----
+# Every /voice/converse and /voice/parse-entry turn is logged (see
+# app/services/conversation_log.py) so real usage can be reviewed to
+# find where teachers get stuck and where the system falls back to
+# "I didn't catch that" instead of doing what was asked.
+
+class VoiceConversationLogOut(BaseModel):
+    id: str
+    source: str
+    teacher_id: Optional[str] = None
+    class_section_id: Optional[str] = None
+    student_id: Optional[str] = None
+    transcript: str
+    speak: str
+    pending_action_in: Optional[str] = None
+    pending_action_out: Optional[str] = None
+    ui_action: Optional[str] = None
+    saved: bool
+    friction: bool
+    friction_reason: Optional[str] = None
+    latency_ms: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class VoiceConversationLogSummary(BaseModel):
+    total_turns: int
+    friction_turns: int
+    friction_rate: float
+    by_friction_reason: dict[str, int]
+    by_source: dict[str, int]
