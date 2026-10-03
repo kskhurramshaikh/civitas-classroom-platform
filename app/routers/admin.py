@@ -11,23 +11,27 @@ token is passed. Once used, consider unsetting SEED_TOKEN on Render to
 close it off again — seed() is idempotent either way (a second call
 is a no-op).
 
-/admin/voice-logs* are protected by normal JWT auth, restricted to the
-admin role, same as every other admin-only route in this app.
+/admin/voice-logs* are DELIBERATELY left open, no login or token — the
+point of this log is to be checked often while building, the same
+no-friction way the standalone ZEC tracker dashboards work (open the
+page, see the data). This is fine while Civitas is still private/
+pre-launch with no real student or parent data flowing through it.
+BEFORE this goes live to real teachers/parents, put real auth back on
+these three routes — the raw feed includes verbatim transcripts.
 """
 import csv
 import io
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import SessionLocal, get_db
-from app.models import Role, User, VoiceConversationLog
+from app.models import VoiceConversationLog
 from app.schemas import VoiceConversationLogOut, VoiceConversationLogSummary
-from app.security import require_role
 from app.services.seed import seed
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -72,7 +76,6 @@ def list_voice_logs(
     source: Optional[str] = None,
     limit: int = Query(100, le=1000),
     offset: int = 0,
-    user: User = Depends(require_role(Role.admin)),
     db: Session = Depends(get_db),
 ):
     """
@@ -89,7 +92,6 @@ def list_voice_logs(
 @router.get("/voice-logs/summary", response_model=VoiceConversationLogSummary)
 def voice_logs_summary(
     class_section_id: Optional[str] = None,
-    user: User = Depends(require_role(Role.admin)),
     db: Session = Depends(get_db),
 ):
     """
@@ -126,7 +128,6 @@ def voice_logs_summary(
 def export_voice_logs_csv(
     friction_only: bool = False,
     class_section_id: Optional[str] = None,
-    user: User = Depends(require_role(Role.admin)),
     db: Session = Depends(get_db),
 ):
     """CSV export of the raw log, for pulling into a spreadsheet for deeper review."""
